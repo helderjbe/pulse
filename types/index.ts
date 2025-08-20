@@ -55,6 +55,24 @@ export interface AppState {
   isDatabaseReady: boolean;
 }
 
+// Chat types
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface ChatModalProps {
+  visible: boolean;
+  onClose: () => void;
+  currentNoteContent: string;
+}
+
+export interface ChatFABProps {
+  onPress: () => void;
+}
+
 // Utility types
 export type DateString = string; // Format: YYYY-MM-DD
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
