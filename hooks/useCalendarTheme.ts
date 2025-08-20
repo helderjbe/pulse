@@ -9,6 +9,8 @@ interface DayItemStyle {
   borderColor: string;
   textColor: string;
   borderWidth: number;
+  fontWeight?: string;
+  fontSize?: number;
 }
 
 /**
@@ -22,6 +24,7 @@ export function useCalendarTheme(selectedDate: string, editedDates: string[]) {
   const selectedColor = useThemeColor({}, "calendarSelected");
   const textColor = useThemeColor({}, "calendarText");
   const editedColor = THEME_COLORS.EDITED_INDICATOR;
+  const filledBackgroundColor = useThemeColor({}, "calendarFilledBackground");
 
   // Memoize expensive date calculations
   const selectedDateParsed = useMemo(() => parseISO(selectedDate), [selectedDate]);
@@ -39,18 +42,28 @@ export function useCalendarTheme(selectedDate: string, editedDates: string[]) {
       let itemBackgroundColor: string = THEME_COLORS.TRANSPARENT;
       let itemBorderColor: string = THEME_COLORS.TRANSPARENT;
       let itemTextColor: string = textColor;
+      let fontWeight: string | undefined;
+      let fontSize: number | undefined;
 
-      if (isTodayDay) {
-        itemBackgroundColor = todayColor;
-        itemTextColor = THEME_COLORS.WHITE;
-        itemBorderColor = todayColor;
-      } else if (isSelectedDay) {
-        itemBackgroundColor = selectedColor;
-        itemTextColor = THEME_COLORS.WHITE;
+      // Apply filled day styling first (background)
+      if (isEditedDay) {
+        itemBackgroundColor = filledBackgroundColor;
+      }
+
+      // Apply selected day styling (border)
+      if (isSelectedDay) {
         itemBorderColor = selectedColor;
-      } else if (isEditedDay) {
-        itemBorderColor = editedColor;
-        itemTextColor = editedColor;
+        itemTextColor = selectedColor;
+      }
+
+      // Apply today styling (font styling) - this can combine with other states
+      if (isTodayDay) {
+        fontWeight = "bold";
+        fontSize = 20;
+        // Only change text color if it hasn't been set by selected state
+        if (!isSelectedDay) {
+          itemTextColor = todayColor;
+        }
       }
 
       return {
@@ -58,9 +71,11 @@ export function useCalendarTheme(selectedDate: string, editedDates: string[]) {
         borderColor: itemBorderColor,
         textColor: itemTextColor,
         borderWidth: itemBorderColor !== THEME_COLORS.TRANSPARENT ? 2 : 0,
+        fontWeight,
+        fontSize,
       };
     },
-    [selectedDateParsed, editedDatesSet, textColor, todayColor, selectedColor, editedColor]
+    [selectedDateParsed, editedDatesSet, textColor, todayColor, selectedColor, editedColor, filledBackgroundColor]
   );
 
   /**

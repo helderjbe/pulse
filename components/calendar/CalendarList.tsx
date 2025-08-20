@@ -16,6 +16,8 @@ interface CalendarListProps {
     borderColor: string;
     textColor: string;
     borderWidth: number;
+    fontWeight?: string;
+    fontSize?: number;
   };
   onViewableItemsChanged: ({ viewableItems }: { viewableItems: any[] }) => void;
   viewabilityConfig: { itemVisiblePercentThreshold: number };

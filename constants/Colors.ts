@@ -20,6 +20,7 @@ export const Colors = {
     calendarSelected: '#007bff',
     calendarText: '#11181C',
     calendarTextSecondary: '#6c757d',
+    calendarFilledBackground: '#f1f3f4',
   },
   dark: {
     text: '#ECEDEE',
@@ -34,5 +35,6 @@ export const Colors = {
     calendarSelected: '#0d6efd',
     calendarText: '#ECEDEE',
     calendarTextSecondary: '#9BA1A6',
+    calendarFilledBackground: '#3a3c3e',
   },
 };

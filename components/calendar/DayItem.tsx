@@ -12,6 +12,8 @@ interface DayItemProps {
     borderColor: string;
     textColor: string;
     borderWidth: number;
+    fontWeight?: string;
+    fontSize?: number;
   };
 }
 
@@ -48,7 +50,14 @@ export const DayItem = React.memo(function DayItem({
       <Text style={[styles.dayText, { color: style.textColor }]}>
         {format(item.date, "EEE")}
       </Text>
-      <Text style={[styles.dateText, { color: style.textColor }]}>
+      <Text style={[
+        styles.dateText, 
+        { 
+          color: style.textColor,
+          fontWeight: style.fontWeight || styles.dateText.fontWeight,
+          fontSize: style.fontSize || styles.dateText.fontSize,
+        }
+      ]}>
         {format(item.date, "d")}
       </Text>
     </TouchableOpacity>
