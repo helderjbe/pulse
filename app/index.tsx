@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { Calendar } from '@/components/Calendar';
-import { DateDisplay } from '@/components/DateDisplay';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { initDatabase } from '@/lib/database';
+import { DateDisplay } from "@/components/DateDisplay";
+import { HorizontalDayViewer } from "@/components/HorizontalDayViewer";
+import { useThemeColor } from "@/hooks/useThemeColor";
+import { initDatabase } from "@/lib/database";
+import React, { useEffect, useState } from "react";
+import { SafeAreaView, StyleSheet, View } from "react-native";
 
 export default function Index() {
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
+    return new Date().toISOString().split("T")[0];
   });
-  
-  const backgroundColor = useThemeColor({}, 'background');
+
+  const backgroundColor = useThemeColor({}, "background");
 
   useEffect(() => {
     initDatabase().catch(console.error);
@@ -23,7 +23,7 @@ export default function Index() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       <View style={styles.content}>
-        <Calendar 
+        <HorizontalDayViewer
           onDateSelect={handleDateSelect}
           selectedDate={selectedDate}
         />
