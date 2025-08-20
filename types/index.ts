@@ -20,9 +20,6 @@ export interface RichTextEditorProps {
   isDatabaseReady: boolean;
 }
 
-export interface RichTextEditorRef {
-  forceSave: () => Promise<void>;
-}
 
 // Calendar types
 export interface DayItem {

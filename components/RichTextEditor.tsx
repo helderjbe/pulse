@@ -2,7 +2,7 @@ import { EDITOR_CONSTANTS, UI_CONSTANTS } from "@/constants/AppConstants";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useNoteContent } from "@/hooks/useNoteContent";
-import type { RichTextEditorProps, RichTextEditorRef } from "@/types";
+import type { RichTextEditorProps } from "@/types";
 import { handleComponentError } from "@/utils/errorHandling";
 import {
   DEFAULT_TOOLBAR_ITEMS,
@@ -12,15 +12,12 @@ import {
   useEditorBridge,
 } from "@10play/tentap-editor";
 import React, {
-  forwardRef,
-  useCallback,
   useEffect,
   useImperativeHandle,
+  forwardRef,
 } from "react";
 import {
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { StatusIndicator } from "@/components/ui/StatusIndicator";
@@ -34,10 +31,12 @@ import { StatusIndicator } from "@/components/ui/StatusIndicator";
  * @param onContentSaved - Callback fired when content is successfully saved
  * @param isDatabaseReady - Whether the database is ready for operations
  */
-export const RichTextEditor = React.memo(forwardRef<
-  RichTextEditorRef,
-  RichTextEditorProps
->(({ selectedDate, onContentSaved, isDatabaseReady }, ref) => {
+export interface RichTextEditorRef {
+  forceSave: () => Promise<void>;
+}
+
+const RichTextEditorComponent = forwardRef<RichTextEditorRef, RichTextEditorProps>(
+function RichTextEditor({ selectedDate, onContentSaved, isDatabaseReady }, ref) {
   const backgroundColor = useThemeColor({}, "background");
 
   const editor = useEditorBridge({
@@ -87,30 +86,16 @@ export const RichTextEditor = React.memo(forwardRef<
     };
   }, [isDatabaseReady, isLoading, editor, saveContent]);
 
-  // Handle force save with proper content retrieval
-  const handleForceSave = useCallback(async () => {
-    await forceSave(() => editor.getHTML());
-  }, [forceSave, editor]);
+  // Expose force save function via ref
+  useImperativeHandle(ref, () => ({
+    forceSave: () => forceSave(() => editor.getHTML()),
+  }), [forceSave, editor]);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      forceSave: handleForceSave,
-    }),
-    [handleForceSave]
-  );
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <View style={styles.toolbar}>
         <Toolbar editor={editor} items={DEFAULT_TOOLBAR_ITEMS} />
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleForceSave}
-          disabled={!isDatabaseReady}
-        >
-          <Text style={styles.saveButtonText}>💾</Text>
-        </TouchableOpacity>
         <StatusIndicator isActive={isLoading || isSaving} />
       </View>
       <View style={styles.editorContainer}>
@@ -126,7 +111,9 @@ export const RichTextEditor = React.memo(forwardRef<
       </View>
     </View>
   );
-}));
+});
+
+export const RichTextEditor = React.memo(RichTextEditorComponent);
 
 const styles = StyleSheet.create({
   container: {
@@ -136,14 +123,6 @@ const styles = StyleSheet.create({
     minHeight: UI_CONSTANTS.TOOLBAR_MIN_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-  },
-  saveButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-  },
-  saveButtonText: {
-    fontSize: 18,
   },
   editorContainer: {
     flex: 1,
@@ -160,5 +139,3 @@ const styles = StyleSheet.create({
 // Add display name for better debugging
 RichTextEditor.displayName = "RichTextEditor";
 
-// Export the ref type for use in other components
-export type { RichTextEditorRef };
