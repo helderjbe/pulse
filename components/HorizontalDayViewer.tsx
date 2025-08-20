@@ -1,7 +1,13 @@
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { addDays, format, isSameDay, isToday, parseISO } from "date-fns";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dimensions,
   FlatList,
@@ -47,8 +53,8 @@ export function HorizontalDayViewer({
   const textColor = useThemeColor({}, "calendarText");
   const editedColor = "#ff6b35"; // Orange for edited dates
 
-  // Generate initial day items
-  useEffect(() => {
+  // Generate initial day items - memoize to prevent recreation
+  const initialDayItems = useMemo(() => {
     const today = new Date();
     const items: DayItem[] = [];
 
@@ -62,9 +68,13 @@ export function HorizontalDayViewer({
       });
     }
 
-    setDayItems(items);
-    setCurrentMonth(format(today, "MMM yyyy"));
-  }, []);
+    return items;
+  }, []); // Empty deps - only generate once
+
+  useEffect(() => {
+    setDayItems(initialDayItems);
+    setCurrentMonth(format(new Date(), "MMM yyyy"));
+  }, [initialDayItems]);
 
   // Scroll to today on initial load
   useEffect(() => {
@@ -125,10 +135,12 @@ export function HorizontalDayViewer({
     onDateSelect(today);
   }, [onDateSelect]);
 
-  // Extend data when reaching ends
+  // Extend data when reaching ends - use functional updates to avoid dependencies
   const onEndReached = useCallback(() => {
-    const lastItem = dayItems[dayItems.length - 1];
-    if (lastItem) {
+    setDayItems((prevItems) => {
+      const lastItem = prevItems[prevItems.length - 1];
+      if (!lastItem) return prevItems;
+
       const newItems: DayItem[] = [];
       for (let i = 1; i <= 30; i++) {
         const date = addDays(lastItem.date, i);
@@ -138,13 +150,15 @@ export function HorizontalDayViewer({
           index: lastItem.index + i,
         });
       }
-      setDayItems((prev) => [...prev, ...newItems]);
-    }
-  }, [dayItems]);
+      return [...prevItems, ...newItems];
+    });
+  }, []); // No dependencies needed with functional update
 
   const onStartReached = useCallback(() => {
-    const firstItem = dayItems[0];
-    if (firstItem) {
+    setDayItems((prevItems) => {
+      const firstItem = prevItems[0];
+      if (!firstItem) return prevItems;
+
       const newItems: DayItem[] = [];
       for (let i = 30; i >= 1; i--) {
         const date = addDays(firstItem.date, -i);
@@ -154,56 +168,78 @@ export function HorizontalDayViewer({
           index: firstItem.index - i,
         });
       }
-      setDayItems((prev) => [...newItems, ...prev]);
-    }
-  }, [dayItems]);
+      return [...newItems, ...prevItems];
+    });
+  }, []); // No dependencies needed with functional update
 
-  // Render individual day item
-  const renderDayItem = ({ item }: { item: DayItem }) => {
-    const isSelectedDay = isSameDay(parseISO(selectedDate), item.date);
-    const isTodayDay = isToday(item.date);
-    const isEditedDay = editedDates.includes(item.dateString);
+  // Throttled scroll handler to prevent excessive onStartReached calls
+  const onScrollHandler = useCallback(
+    (event: any) => {
+      const { contentOffset } = event.nativeEvent;
+      if (contentOffset.x <= DAY_ITEM_WIDTH * 5) {
+        onStartReached();
+      }
+    },
+    [onStartReached]
+  );
 
-    // Determine background color based on state priority
-    let itemBackgroundColor = "transparent";
-    let itemBorderColor = "transparent";
-    let itemTextColor = textColor;
+  // Render individual day item - memoized to prevent unnecessary rerenders
+  const renderDayItem = useCallback(
+    ({ item }: { item: DayItem }) => {
+      const isSelectedDay = isSameDay(parseISO(selectedDate), item.date);
+      const isTodayDay = isToday(item.date);
+      const isEditedDay = editedDates.includes(item.dateString);
 
-    if (isTodayDay) {
-      itemBackgroundColor = todayColor;
-      itemTextColor = "#ffffff";
-      itemBorderColor = todayColor;
-    } else if (isSelectedDay) {
-      itemBackgroundColor = selectedColor;
-      itemTextColor = "#ffffff";
-      itemBorderColor = selectedColor;
-    } else if (isEditedDay) {
-      itemBorderColor = editedColor;
-      itemTextColor = editedColor;
-    }
+      // Determine background color based on state priority
+      let itemBackgroundColor = "transparent";
+      let itemBorderColor = "transparent";
+      let itemTextColor = textColor;
 
-    return (
-      <TouchableOpacity
-        style={[
-          styles.dayItem,
-          {
-            backgroundColor: itemBackgroundColor,
-            borderColor: itemBorderColor,
-            borderWidth: itemBorderColor !== "transparent" ? 2 : 0,
-          },
-        ]}
-        onPress={() => handleDayPress(item)}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.dayText, { color: itemTextColor }]}>
-          {format(item.date, "EEE")}
-        </Text>
-        <Text style={[styles.dateText, { color: itemTextColor }]}>
-          {format(item.date, "d")}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+      if (isTodayDay) {
+        itemBackgroundColor = todayColor;
+        itemTextColor = "#ffffff";
+        itemBorderColor = todayColor;
+      } else if (isSelectedDay) {
+        itemBackgroundColor = selectedColor;
+        itemTextColor = "#ffffff";
+        itemBorderColor = selectedColor;
+      } else if (isEditedDay) {
+        itemBorderColor = editedColor;
+        itemTextColor = editedColor;
+      }
+
+      return (
+        <TouchableOpacity
+          style={[
+            styles.dayItem,
+            {
+              backgroundColor: itemBackgroundColor,
+              borderColor: itemBorderColor,
+              borderWidth: itemBorderColor !== "transparent" ? 2 : 0,
+            },
+          ]}
+          onPress={() => handleDayPress(item)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.dayText, { color: itemTextColor }]}>
+            {format(item.date, "EEE")}
+          </Text>
+          <Text style={[styles.dateText, { color: itemTextColor }]}>
+            {format(item.date, "d")}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [
+      selectedDate,
+      editedDates,
+      textColor,
+      todayColor,
+      selectedColor,
+      editedColor,
+      handleDayPress,
+    ]
+  );
 
   if (dayItems.length === 0) {
     return null;
@@ -248,13 +284,7 @@ export function HorizontalDayViewer({
         viewabilityConfig={viewabilityConfig}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
-        // Note: onStartReached is not a built-in prop, we'll handle it differently
-        onScroll={(event) => {
-          const { contentOffset } = event.nativeEvent;
-          if (contentOffset.x <= DAY_ITEM_WIDTH * 5) {
-            onStartReached();
-          }
-        }}
+        onScroll={onScrollHandler}
         getItemLayout={(_, index) => ({
           length: DAY_ITEM_WIDTH + 4, // Include horizontal margins
           offset: (DAY_ITEM_WIDTH + 4) * index,

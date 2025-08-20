@@ -1,6 +1,6 @@
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
-const DATABASE_NAME = 'notes.db';
+const DATABASE_NAME = "notes.db";
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -26,7 +26,7 @@ export const initDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 
 export const getDatabase = (): SQLite.SQLiteDatabase => {
   if (!db) {
-    throw new Error('Database not initialized. Call initDatabase() first.');
+    throw new Error("Database not initialized. Call initDatabase() first.");
   }
   return db;
 };
@@ -43,7 +43,7 @@ export const noteOperations = {
   async getNote(day: string): Promise<Note | null> {
     const db = getDatabase();
     const result = await db.getFirstAsync<Note>(
-      'SELECT * FROM notes WHERE day = ?',
+      "SELECT * FROM notes WHERE day = ?",
       [day]
     );
     return result || null;
@@ -62,13 +62,21 @@ export const noteOperations = {
 
   async deleteNote(day: string): Promise<void> {
     const db = getDatabase();
-    await db.runAsync('DELETE FROM notes WHERE day = ?', [day]);
+    await db.runAsync("DELETE FROM notes WHERE day = ?", [day]);
   },
 
   async getAllNotes(): Promise<Note[]> {
     const db = getDatabase();
     return await db.getAllAsync<Note>(
-      'SELECT * FROM notes ORDER BY created_at DESC'
+      "SELECT * FROM notes ORDER BY created_at DESC"
     );
-  }
+  },
+
+  async getEditedDates(): Promise<string[]> {
+    const db = getDatabase();
+    const results = await db.getAllAsync<{ day: string }>(
+      'SELECT day FROM notes WHERE text IS NOT NULL AND text != ""'
+    );
+    return results.map((result) => result.day);
+  },
 };
