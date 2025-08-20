@@ -1,5 +1,5 @@
-import { DateDisplay } from "@/components/DateDisplay";
 import { HorizontalDayViewer } from "@/components/HorizontalDayViewer";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { initDatabase } from "@/lib/database";
 import React, { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ export default function Index() {
           onDateSelect={handleDateSelect}
           selectedDate={selectedDate}
         />
-        <DateDisplay selectedDate={selectedDate} />
+        <RichTextEditor />
       </View>
     </SafeAreaView>
   );
@@ -39,6 +39,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 20,
   },
 });
