@@ -1,5 +1,9 @@
+import { EDITOR_CONSTANTS, UI_CONSTANTS } from "@/constants/AppConstants";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import { noteOperations } from "@/lib/database";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { useNoteContent } from "@/hooks/useNoteContent";
+import type { RichTextEditorProps, RichTextEditorRef } from "@/types";
+import { handleComponentError } from "@/utils/errorHandling";
 import {
   DEFAULT_TOOLBAR_ITEMS,
   RichText,
@@ -12,37 +16,29 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useRef,
-  useState,
 } from "react";
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { StatusIndicator } from "@/components/ui/StatusIndicator";
 
-interface RichTextEditorProps {
-  selectedDate: string;
-  onContentSaved?: () => void;
-  isDatabaseReady: boolean;
-}
 
-export interface RichTextEditorRef {
-  forceSave: () => Promise<void>;
-}
-
-export const RichTextEditor = forwardRef<
+/**
+ * A rich text editor component with auto-save functionality.
+ * Automatically saves content to the database when the user stops typing.
+ * 
+ * @param selectedDate - The date for which content is being edited
+ * @param onContentSaved - Callback fired when content is successfully saved
+ * @param isDatabaseReady - Whether the database is ready for operations
+ */
+export const RichTextEditor = React.memo(forwardRef<
   RichTextEditorRef,
   RichTextEditorProps
 >(({ selectedDate, onContentSaved, isDatabaseReady }, ref) => {
   const backgroundColor = useThemeColor({}, "background");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedContentRef = useRef<string>("");
-  const isLoadingContentRef = useRef(false);
 
   const editor = useEditorBridge({
     autofocus: true,
@@ -51,145 +47,57 @@ export const RichTextEditor = forwardRef<
     bridgeExtensions: TenTapStartKit,
   });
 
-  // Load note content when selectedDate changes
-  useEffect(() => {
-    const loadNote = async () => {
-      if (!selectedDate || !isDatabaseReady || isLoadingContentRef.current)
-        return;
+  // Custom hooks for managing state and logic
+  const { isLoading } = useNoteContent({
+    selectedDate,
+    isDatabaseReady,
+    editor,
+  });
 
-      try {
-        setIsLoading(true);
-        isLoadingContentRef.current = true;
+  const { saveContent, isSaving, forceSave } = useAutoSave({
+    selectedDate,
+    isDatabaseReady,
+    onContentSaved,
+  });
 
-        const note = await noteOperations.getNote(selectedDate);
-        const content = note?.text || "";
-
-        // Only update if content is different to avoid unnecessary rerenders
-        if (content !== lastSavedContentRef.current) {
-          await editor.setContent(content);
-          lastSavedContentRef.current = content;
-        }
-      } catch (error) {
-        console.error("Failed to load note:", error);
-      } finally {
-        setIsLoading(false);
-        isLoadingContentRef.current = false;
-      }
-    };
-
-    loadNote();
-  }, [selectedDate, isDatabaseReady, editor]);
-
-  // Debounced save function
-  const debouncedSave = useCallback(
-    async (content: string) => {
-      console.log("💾 Save attempt:", {
-        selectedDate,
-        isDatabaseReady,
-        contentLength: content.length,
-        isEmpty: !content || content === "<p></p>",
-        lastSavedLength: lastSavedContentRef.current.length,
-      });
-
-      if (
-        !selectedDate ||
-        !isDatabaseReady ||
-        content === lastSavedContentRef.current ||
-        !content ||
-        content === "<p></p>"
-      ) {
-        console.log("❌ Save skipped");
-        return;
-      }
-
-      try {
-        console.log("🚀 Saving to database...");
-        setIsSaving(true);
-        await noteOperations.saveNote(selectedDate, content);
-        lastSavedContentRef.current = content;
-        console.log("✅ Save successful!");
-
-        // Notify parent component that content was saved
-        onContentSaved?.();
-      } catch (error) {
-        console.error("💥 Save failed:", error);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [selectedDate, isDatabaseReady, onContentSaved]
-  );
-
-  // Handle content changes with debouncing
+  // Set up content change detection for auto-save
   useEffect(() => {
     if (!isDatabaseReady) return;
 
     const handleContentChange = async () => {
       try {
         const content = await editor.getHTML();
-        console.log("📝 Content change:", {
-          contentLength: content.length,
-          isDatabaseReady,
-          isLoading: isLoadingContentRef.current,
-          content: content.substring(0, 50) + "...",
-        });
-
-        // Clear existing timeout
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-
-        // Set new timeout for debounced save
-        saveTimeoutRef.current = setTimeout(() => {
-          console.log("⏰ Timeout fired, calling save...");
-          debouncedSave(content);
-        }, 1000) as unknown as NodeJS.Timeout; // 1 second debounce
+        saveContent(content);
       } catch (error) {
-        console.error("Failed to get editor content:", error);
+        handleComponentError('RichTextEditor', error, 'getting content for auto-save');
       }
     };
 
-    // Listen to editor state changes
-    let interval: NodeJS.Timeout;
-
-    const startListening = () => {
-      // Check for content changes every 1 second while typing
-      interval = setInterval(async () => {
-        if (!isLoadingContentRef.current && isDatabaseReady) {
-          handleContentChange();
-        }
-      }, 1000) as unknown as NodeJS.Timeout;
-    };
-
-    startListening();
+    // Use editor's built-in change events for more efficient content detection
+    const changeInterval = setInterval(() => {
+      if (!isLoading) {
+        handleContentChange();
+      }
+    }, EDITOR_CONSTANTS.CONTENT_CHECK_INTERVAL_MS) as unknown as NodeJS.Timeout;
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      if (changeInterval) {
+        clearInterval(changeInterval);
       }
     };
-  }, [editor, debouncedSave, isDatabaseReady]);
+  }, [isDatabaseReady, isLoading, editor, saveContent]);
 
-  // Force save function exposed through ref
-  const forceSave = useCallback(async () => {
-    try {
-      const content = await editor.getHTML();
-      console.log("Force save triggered with content length:", content.length);
-      await debouncedSave(content);
-    } catch (error) {
-      console.error("Failed to force save:", error);
-    }
-  }, [editor, debouncedSave]);
+  // Handle force save with proper content retrieval
+  const handleForceSave = useCallback(async () => {
+    await forceSave(() => editor.getHTML());
+  }, [forceSave, editor]);
 
   useImperativeHandle(
     ref,
     () => ({
-      forceSave,
+      forceSave: handleForceSave,
     }),
-    [forceSave]
+    [handleForceSave]
   );
 
   return (
@@ -198,16 +106,12 @@ export const RichTextEditor = forwardRef<
         <Toolbar editor={editor} items={DEFAULT_TOOLBAR_ITEMS} />
         <TouchableOpacity
           style={styles.saveButton}
-          onPress={forceSave}
+          onPress={handleForceSave}
           disabled={!isDatabaseReady}
         >
           <Text style={styles.saveButtonText}>💾</Text>
         </TouchableOpacity>
-        {(isLoading || isSaving) && (
-          <View style={styles.loadingIndicator}>
-            <ActivityIndicator size="small" />
-          </View>
-        )}
+        <StatusIndicator isActive={isLoading || isSaving} />
       </View>
       <View style={styles.editorContainer}>
         <RichText
@@ -222,14 +126,14 @@ export const RichTextEditor = forwardRef<
       </View>
     </View>
   );
-});
+}));
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   toolbar: {
-    minHeight: 44,
+    minHeight: UI_CONSTANTS.TOOLBAR_MIN_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -241,20 +145,20 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 18,
   },
-  loadingIndicator: {
-    marginLeft: 8,
-  },
   editorContainer: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: UI_CONSTANTS.EDITOR_HORIZONTAL_PADDING,
   },
   editor: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: EDITOR_CONSTANTS.FONT_SIZE,
+    lineHeight: EDITOR_CONSTANTS.LINE_HEIGHT,
     borderWidth: 0,
   },
 });
 
 // Add display name for better debugging
 RichTextEditor.displayName = "RichTextEditor";
+
+// Export the ref type for use in other components
+export type { RichTextEditorRef };
