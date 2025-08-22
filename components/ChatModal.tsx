@@ -1,14 +1,12 @@
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { useChat } from "@/hooks/useChat";
 import type { ChatModalProps } from "@/types";
-import React, { useState, useRef } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import {
   Modal,
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  TextInput,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -16,51 +14,69 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChatMessage } from "@/components/ui/ChatMessage";
+import { ChatHeader } from "@/components/ui/ChatHeader";
+import { ChatInput } from "@/components/ui/ChatInput";
+import { ChatError } from "@/components/ui/ChatError";
 
-export function ChatModal({ visible, onClose, currentNoteContent, currentDay }: ChatModalProps) {
-  const [inputText, setInputText] = useState("");
+export const ChatModal = React.memo(({ visible, onClose, currentNoteContent, currentDay }: ChatModalProps) => {
   const scrollViewRef = useRef<ScrollView>(null);
   
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
+  const loadingTextColor = useThemeColor({}, "chatLoadingText");
   
-  const { messages, isLoading, sendMessage, clearChat, isConfigured } = useChat({
+  const { messages, isLoading, error, sendMessage, clearChat, isConfigured } = useChat({
     currentNoteContent,
     currentDay,
   });
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-    
-    const messageToSend = inputText.trim();
-    setInputText("");
-    
-    await sendMessage(messageToSend);
+  const handleSendMessage = useCallback(async (messageText: string) => {
+    await sendMessage(messageText);
     
     // Scroll to bottom after message is sent
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  };
+  }, [sendMessage]);
 
-  const handleClose = () => {
-    setInputText("");
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
+
+  const handleClearChat = useCallback(() => {
+    clearChat();
+  }, [clearChat]);
+
+  // Auto-scroll when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
 
   if (!isConfigured) {
     return (
-      <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+      <Modal 
+        visible={visible} 
+        animationType="slide" 
+        presentationStyle="fullScreen"
+        accessibilityViewIsModal
+      >
         <SafeAreaView style={[styles.container, { backgroundColor }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: textColor }]}>AI Chat</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Text style={[styles.closeButtonText, { color: textColor }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
+          <ChatHeader 
+            onClose={handleClose}
+            onClear={handleClearChat}
+            hasMessages={false}
+          />
           <View style={styles.centeredContent}>
-            <Text style={[styles.errorText, { color: textColor }]}>
+            <Text 
+              style={[styles.errorText, { color: textColor }]}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+            >
               OpenAI API key not configured.{'\n'}
               Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment.
             </Text>
@@ -71,37 +87,44 @@ export function ChatModal({ visible, onClose, currentNoteContent, currentDay }: 
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+    <Modal 
+      visible={visible} 
+      animationType="slide" 
+      presentationStyle="fullScreen"
+      accessibilityViewIsModal
+    >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <KeyboardAvoidingView 
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: textColor }]}>AI Chat</Text>
-            <View style={styles.headerButtons}>
-              {messages.length > 0 && (
-                <TouchableOpacity onPress={clearChat} style={styles.clearButton}>
-                  <Text style={[styles.clearButtonText, { color: tintColor }]}>Clear</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Text style={[styles.closeButtonText, { color: textColor }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <ChatHeader 
+            onClose={handleClose}
+            onClear={handleClearChat}
+            hasMessages={messages.length > 0}
+          />
 
-          {/* Messages */}
           <ScrollView 
             ref={scrollViewRef}
             style={styles.messagesContainer}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            accessibilityRole="scrollbar"
+            accessibilityLabel="Chat messages"
           >
+            {error && (
+              <ChatError 
+                error={error}
+                onDismiss={() => {/* Error is handled by useChat hook */}}
+              />
+            )}
+            
             {messages.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={[styles.emptyStateText, { color: textColor + '80' }]}>
+                <Text 
+                  style={[styles.emptyStateText, { color: loadingTextColor }]}
+                  accessibilityRole="text"
+                >
                   Ask me anything about your notes!
                 </Text>
               </View>
@@ -112,56 +135,32 @@ export function ChatModal({ visible, onClose, currentNoteContent, currentDay }: 
             )}
             
             {isLoading && (
-              <View style={styles.loadingContainer}>
+              <View 
+                style={styles.loadingContainer}
+                accessibilityRole="text"
+                accessibilityLabel="AI is thinking"
+                accessibilityLiveRegion="polite"
+              >
                 <ActivityIndicator size="small" color={tintColor} />
-                <Text style={[styles.loadingText, { color: textColor + '80' }]}>
+                <Text style={[styles.loadingText, { color: loadingTextColor }]}>
                   Thinking...
                 </Text>
               </View>
             )}
           </ScrollView>
 
-          {/* Input Area */}
-          <View style={[styles.inputContainer, { borderTopColor: textColor + '20' }]}>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: backgroundColor,
-                  borderColor: textColor + '30',
-                  color: textColor,
-                }
-              ]}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Ask about your notes..."
-              placeholderTextColor={textColor + '60'}
-              multiline
-              maxLength={500}
-              editable={!isLoading}
-              onSubmitEditing={handleSendMessage}
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity
-              onPress={handleSendMessage}
-              disabled={!inputText.trim() || isLoading}
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor: inputText.trim() && !isLoading ? tintColor : textColor + '30',
-                }
-              ]}
-            >
-              <Text style={styles.sendButtonText}>
-                {isLoading ? '⋯' : '→'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <ChatInput 
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            disabled={!isConfigured}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
-}
+});
+
+ChatModal.displayName = "ChatModal";
 
 const styles = StyleSheet.create({
   container: {
@@ -169,38 +168,6 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#00000020',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  clearButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  clearButtonText: {
-    fontSize: 16,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    fontWeight: '500',
   },
   messagesContainer: {
     flex: 1,
@@ -237,35 +204,5 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    gap: 12,
-    alignItems: 'flex-end',
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    maxHeight: 100,
-    minHeight: 44,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
   },
 });
