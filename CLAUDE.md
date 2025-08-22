@@ -58,6 +58,9 @@ CREATE TABLE notes (
 - **useCalendarData** - Calendar data generation and infinite scroll logic
 - **useCalendarScroll** - FlatList scroll behavior and month navigation
 - **useChat** - OpenAI chat integration with note context
+- **useEditorState** - Editor state management and content handling
+- **useNoteContent** - Note content operations and state management
+- **useCalendarTheme** - Calendar-specific theming and styling
 
 ### Theming System
 - **Colors.ts** - Comprehensive light/dark color definitions including calendar-specific colors
@@ -73,3 +76,20 @@ CREATE TABLE notes (
 - Path aliases: `@/*` maps to project root
 - Custom types in `types/index.ts` for component props and data structures
 - Expo typed routes experimental feature enabled
+
+### Key Dependencies & Libraries
+- **@10play/tentap-editor** - Rich text editing with TenTap editor
+- **expo-sqlite** - Local SQLite database for note storage
+- **openai** - OpenAI API integration for AI chat functionality
+- **date-fns** - Date manipulation and formatting utilities
+- **expo-router** - File-based routing system for navigation
+
+### Error Handling & Utilities
+- **errorHandling.ts** - Centralized error handling utilities with `safeAsyncOperation` and `handleComponentError` functions
+- Comprehensive error boundaries and graceful error handling throughout components
+- Type-safe database operations with proper error propagation
+
+### Component Organization
+- **components/calendar/** - Modular calendar components including `CalendarErrorBoundary`, `CalendarHeader`, `CalendarList`, and `DayItem`
+- **components/ui/** - Reusable UI components like `ChatFAB`, `ChatMessage`, and `StatusIndicator`
+- **utils/** - Utility functions for error handling and common operations
