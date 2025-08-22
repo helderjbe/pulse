@@ -3,15 +3,14 @@ import type { ChatFABProps } from "@/types";
 import React from "react";
 import {
   TouchableOpacity,
-  Text,
   StyleSheet,
   View,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 export function ChatFAB({ onPress }: ChatFABProps) {
-  const tintColor = useThemeColor({}, "tint");
   const insets = useSafeAreaInsets();
 
   return (
@@ -20,18 +19,17 @@ export function ChatFAB({ onPress }: ChatFABProps) {
       style={[
         styles.fab,
         {
-          backgroundColor: tintColor,
           bottom: insets.bottom + 20,
           right: 20,
           ...Platform.select({
             ios: {
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
             },
             android: {
-              elevation: 8,
+              elevation: 6,
             },
           }),
         },
@@ -39,7 +37,11 @@ export function ChatFAB({ onPress }: ChatFABProps) {
       activeOpacity={0.8}
     >
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>💬</Text>
+        <Ionicons 
+          name="sparkles" 
+          size={22} 
+          color="white" 
+        />
       </View>
     </TouchableOpacity>
   );
@@ -51,16 +53,15 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   iconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  icon: {
-    fontSize: 24,
-    textAlign: 'center',
   },
 });

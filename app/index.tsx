@@ -7,7 +7,8 @@ import { useCurrentNote } from "@/hooks/useCurrentNote";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { useEmbeddings } from "@/hooks/useEmbeddings";
 import React, { useState, useRef } from "react";
-import { SafeAreaView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Index() {
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -16,6 +17,7 @@ export default function Index() {
   const [isChatModalVisible, setIsChatModalVisible] = useState(false);
 
   const backgroundColor = useThemeColor({}, "background");
+  const insets = useSafeAreaInsets();
   const { isDatabaseReady } = useDatabaseInit();
   const { editedDates, refreshEditedDates } = useEditedDates(isDatabaseReady);
   const { currentContent } = useCurrentNote({ selectedDate, isDatabaseReady });
@@ -48,7 +50,13 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.container, { 
+      backgroundColor,
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    }]}>
       <View style={styles.content}>
         <HorizontalDayViewer
           onDateSelect={handleDateSelect}
@@ -71,7 +79,7 @@ export default function Index() {
         currentNoteContent={currentContent}
         currentDay={selectedDate}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
