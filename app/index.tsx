@@ -5,6 +5,7 @@ import { ChatModal } from "@/components/ChatModal";
 import { useDatabaseInit, useEditedDates } from "@/hooks/useDatabase";
 import { useCurrentNote } from "@/hooks/useCurrentNote";
 import { useThemeColor } from "@/hooks/useThemeColor";
+import { useEmbeddings } from "@/hooks/useEmbeddings";
 import React, { useState, useRef } from "react";
 import { SafeAreaView, StyleSheet, View } from "react-native";
 
@@ -18,6 +19,7 @@ export default function Index() {
   const { isDatabaseReady } = useDatabaseInit();
   const { editedDates, refreshEditedDates } = useEditedDates(isDatabaseReady);
   const { currentContent } = useCurrentNote({ selectedDate, isDatabaseReady });
+  const { updateEmbeddingForNote } = useEmbeddings({ isDatabaseReady });
   const editorRef = useRef<RichTextEditorRef>(null);
 
   const handleDateSelect = async (dateString: string) => {
@@ -32,6 +34,19 @@ export default function Index() {
     setSelectedDate(dateString);
   };
 
+  const handleContentSaved = async (content: string) => {
+    // Refresh edited dates for UI
+    refreshEditedDates();
+    
+    // Update embeddings in background
+    try {
+      await updateEmbeddingForNote(selectedDate, content);
+    } catch (error) {
+      console.error('Failed to update embedding:', error);
+      // Don't show error to user - this is a background enhancement
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       <View style={styles.content}>
@@ -43,7 +58,7 @@ export default function Index() {
         <RichTextEditor
           ref={editorRef}
           selectedDate={selectedDate}
-          onContentSaved={refreshEditedDates}
+          onContentSaved={handleContentSaved}
           isDatabaseReady={isDatabaseReady}
         />
       </View>
@@ -54,6 +69,7 @@ export default function Index() {
         visible={isChatModalVisible}
         onClose={() => setIsChatModalVisible(false)}
         currentNoteContent={currentContent}
+        currentDay={selectedDate}
       />
     </SafeAreaView>
   );

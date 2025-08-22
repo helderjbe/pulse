@@ -1,7 +1,7 @@
 import { CALENDAR_CONSTANTS, UI_CONSTANTS } from "@/constants/AppConstants";
 import type { DayItem as DayItemType } from "@/types";
 import React, { forwardRef } from "react";
-import { Dimensions, FlatList, StyleSheet } from "react-native";
+import { Dimensions, FlatList, StyleSheet, TextStyle } from "react-native";
 import { DayItem } from "./DayItem";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -16,7 +16,7 @@ interface CalendarListProps {
     borderColor: string;
     textColor: string;
     borderWidth: number;
-    fontWeight?: string;
+    fontWeight?: TextStyle['fontWeight'];
     fontSize?: number;
   };
   onViewableItemsChanged: ({ viewableItems }: { viewableItems: any[] }) => void;

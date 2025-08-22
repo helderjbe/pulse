@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChatMessage } from "@/components/ui/ChatMessage";
 
-export function ChatModal({ visible, onClose, currentNoteContent }: ChatModalProps) {
+export function ChatModal({ visible, onClose, currentNoteContent, currentDay }: ChatModalProps) {
   const [inputText, setInputText] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -27,6 +27,7 @@ export function ChatModal({ visible, onClose, currentNoteContent }: ChatModalPro
   
   const { messages, isLoading, sendMessage, clearChat, isConfigured } = useChat({
     currentNoteContent,
+    currentDay,
   });
 
   const handleSendMessage = async () => {

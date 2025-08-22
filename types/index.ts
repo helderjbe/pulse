@@ -16,7 +16,7 @@ export interface HorizontalDayViewerProps {
 
 export interface RichTextEditorProps {
   selectedDate: string;
-  onContentSaved?: () => void;
+  onContentSaved?: (content: string) => void;
   isDatabaseReady: boolean;
 }
 
@@ -67,6 +67,7 @@ export interface ChatModalProps {
   visible: boolean;
   onClose: () => void;
   currentNoteContent: string;
+  currentDay: string;
 }
 
 export interface ChatFABProps {

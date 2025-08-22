@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import { findSimilarNotes } from './embeddingService';
+import { format } from 'date-fns';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -17,15 +19,33 @@ export interface ChatResponse {
 }
 
 /**
- * Send a chat message to OpenAI with note context
+ * Determine if a query would benefit from semantic search across notes
+ */
+function shouldUseSemanticSearch(userMessage: string): boolean {
+  const semanticKeywords = [
+    'find', 'search', 'look', 'remember', 'recall', 'mentioned', 'wrote', 'noted',
+    'what did i', 'when did i', 'where did i', 'have i', 'did i write',
+    'similar', 'related', 'about', 'regarding', 'concerning',
+    'previous', 'past', 'earlier', 'before', 'history', 'all my',
+    'compare', 'contrast', 'difference', 'summary', 'summarize'
+  ];
+
+  const lowerMessage = userMessage.toLowerCase();
+  return semanticKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
+/**
+ * Send a chat message to OpenAI with enhanced note context
  * @param userMessage - The user's question/message
- * @param noteContent - Current note content for context
+ * @param currentNoteContent - Current note content for context  
+ * @param currentDay - Current selected day (YYYY-MM-DD format)
  * @param chatHistory - Previous chat messages for context
  * @returns Promise with AI response
  */
 export async function sendChatMessage(
   userMessage: string,
-  noteContent: string = '',
+  currentNoteContent: string = '',
+  currentDay: string = '',
   chatHistory: ChatMessage[] = []
 ): Promise<ChatResponse> {
   try {
@@ -34,13 +54,42 @@ export async function sendChatMessage(
       throw new Error('OpenAI API key not configured');
     }
 
-    // Build context message
-    const systemMessage = `You are a helpful AI assistant that answers questions about the user's notes. 
-    
-Current note content for today:
-${noteContent || 'No content for today yet.'}
+    let contextMessage = '';
 
-Please help the user understand, analyze, or get insights about their notes. Be concise and helpful.`;
+    // Check if we should use semantic search
+    if (shouldUseSemanticSearch(userMessage)) {
+      try {
+        const similarNotes = await findSimilarNotes(userMessage, 4);
+        
+        if (similarNotes.length > 0) {
+          contextMessage = `Here are relevant notes from your journal that might help answer your question:\n\n`;
+          
+          similarNotes.forEach((result, index) => {
+            const noteDate = format(new Date(result.note.day), 'MMMM dd, yyyy');
+            const noteText = result.note.text
+              .replace(/<[^>]*>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .substring(0, 200);
+            
+            contextMessage += `${index + 1}. ${noteDate} (relevance: ${Math.round(result.similarity * 100)}%):\n${noteText}${noteText.length >= 200 ? '...' : ''}\n\n`;
+          });
+        }
+      } catch (error) {
+        console.error('Semantic search failed, falling back to current note only:', error);
+      }
+    }
+
+    // Always include current note content
+    const todayDate = currentDay ? format(new Date(currentDay), 'MMMM dd, yyyy') : 'today';
+    contextMessage += `Current note content for ${todayDate}:\n${currentNoteContent || 'No content yet.'}`;
+
+    // Build enhanced system message
+    const systemMessage = `You are a helpful AI assistant that answers questions about the user's personal notes and journal entries. 
+
+${contextMessage}
+
+Please help the user understand, analyze, or get insights about their notes. Be concise and helpful. When referencing specific notes, mention the date for context. If asked about trends or patterns, look across the provided notes to give comprehensive insights.`;
 
     // Build messages array
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -52,11 +101,11 @@ Please help the user understand, analyze, or get insights about their notes. Be 
       { role: 'user', content: userMessage },
     ];
 
-    // Call OpenAI API
+    // Call OpenAI API with higher token limit for more comprehensive responses
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages,
-      max_tokens: 500,
+      max_tokens: 800,
       temperature: 0.7,
     });
 

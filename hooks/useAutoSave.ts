@@ -6,7 +6,7 @@ import { handleComponentError, safeAsyncOperation } from '@/utils/errorHandling'
 interface UseAutoSaveProps {
   selectedDate: string;
   isDatabaseReady: boolean;
-  onContentSaved?: () => void;
+  onContentSaved?: (content: string) => void;
 }
 
 interface UseAutoSaveReturn {
@@ -49,7 +49,7 @@ export function useAutoSave({
         handleComponentError('useAutoSave', error, 'saving note content');
       } else {
         lastSavedContentRef.current = content;
-        onContentSaved?.();
+        onContentSaved?.(content);
       }
 
       setIsSaving(false);

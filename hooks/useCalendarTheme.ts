@@ -3,13 +3,14 @@ import { useThemeColor } from "@/hooks/useThemeColor";
 import type { DayItem } from "@/types";
 import { isSameDay, isToday, parseISO } from "date-fns";
 import { useCallback, useMemo } from "react";
+import { TextStyle } from "react-native";
 
 interface DayItemStyle {
   backgroundColor: string;
   borderColor: string;
   textColor: string;
   borderWidth: number;
-  fontWeight?: string;
+  fontWeight?: TextStyle['fontWeight'];
   fontSize?: number;
 }
 
@@ -42,7 +43,7 @@ export function useCalendarTheme(selectedDate: string, editedDates: string[]) {
       let itemBackgroundColor: string = THEME_COLORS.TRANSPARENT;
       let itemBorderColor: string = THEME_COLORS.TRANSPARENT;
       let itemTextColor: string = textColor;
-      let fontWeight: string | undefined;
+      let fontWeight: TextStyle['fontWeight'];
       let fontSize: number | undefined;
 
       // Apply filled day styling first (background)

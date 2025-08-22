@@ -2,7 +2,7 @@ import { UI_CONSTANTS } from "@/constants/AppConstants";
 import type { DayItem as DayItemType } from "@/types";
 import { format } from "date-fns";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, TextStyle } from "react-native";
 
 interface DayItemProps {
   item: DayItemType;
@@ -12,7 +12,7 @@ interface DayItemProps {
     borderColor: string;
     textColor: string;
     borderWidth: number;
-    fontWeight?: string;
+    fontWeight?: TextStyle['fontWeight'];
     fontSize?: number;
   };
 }

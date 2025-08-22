@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 
 interface UseChatProps {
   currentNoteContent: string;
+  currentDay: string;
 }
 
 interface UseChatReturn {
@@ -15,7 +16,7 @@ interface UseChatReturn {
   isConfigured: boolean;
 }
 
-export function useChat({ currentNoteContent }: UseChatProps): UseChatReturn {
+export function useChat({ currentNoteContent, currentDay }: UseChatProps): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +48,8 @@ export function useChat({ currentNoteContent }: UseChatProps): UseChatReturn {
         timestamp: msg.timestamp,
       }));
 
-      // Send to OpenAI
-      const response = await sendChatMessage(content.trim(), currentNoteContent, chatHistory);
+      // Send to OpenAI with enhanced context
+      const response = await sendChatMessage(content.trim(), currentNoteContent, currentDay, chatHistory);
 
       if (response.error) {
         throw new Error(response.error);
@@ -80,7 +81,7 @@ export function useChat({ currentNoteContent }: UseChatProps): UseChatReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [currentNoteContent, messages]);
+  }, [currentNoteContent, currentDay, messages]);
 
   const clearChat = useCallback(() => {
     setMessages([]);
